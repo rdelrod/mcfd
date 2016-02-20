@@ -1,0 +1,18 @@
+{
+  "eventListeners": [{
+    "type": "webhook",
+    "uri": "http://127.0.0.1:8083/event",
+    "events": [
+      "status",
+      "modAddition",
+      "modDeletion",
+      "modUpdated",
+      "versionChange"
+    ]
+  }],
+  "minecraft": {
+    "version": false,
+    "forge": "1.8.9-11.15.1.1755",
+    "dir": "./minecraft"
+  }
+}
