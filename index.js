@@ -9,9 +9,10 @@
 'use strict';
 
 // node.js api
-const io   = require('socket.io')(),
-      mfc  = require('node-mcf'),
-      _log = require('./lib/log.js');
+const io        = require('socket.io')(),
+      mfc       = require('node-mcf'),
+      spawnSync = require('child_process').spawnSync,
+      _log      = require('./lib/log.js');
 
 // our properties
 const config = require('./config/config.json');
@@ -20,6 +21,7 @@ const config = require('./config/config.json');
 const M = new mfc(config);
 
 io.on('connection', function(socket) {
+  // Begin authentication system.
   let dropAuth;
 
   if(config.mfcd !== undefined) {
@@ -43,10 +45,15 @@ io.on('connection', function(socket) {
     clearTimeout(dropAuth);
   });
 
+  /**
+   * sendCommand
+   *
+   * Send a command to the PTY.
+   **/
   socket.on('sendCommand', function(object) {
     if(!socket.isAuthenticated) return false;
 
-    if(object === undefined || object.command === undefined) {
+    if(!M.isPtyRunning()) {
       return socket.emit('res', {
         type: 'sendCommand',
         data: false
@@ -59,38 +66,43 @@ io.on('connection', function(socket) {
     });
   });
 
-  socket.on('startServer', function(type) {
-    if(!socket.isAuthenticated) {
-      console.log('[mcfd] not authenticated, drop');
-      return false;
-    }
+  /**
+   * startServer
+   *
+   * Start the Minecraft startServer
+   **/
+  socket.on('startServer', function() {
+    if(!socket.isAuthenticated) return false;
 
-    let resp = function(data) {
+    const resp = function(data) {
       socket.emit('res', {
         type: 'startServer',
         data: data
       });
     }
 
-    if(!M.isPtyRunning()) {
+    const isPtyRunning = M.isPtyRunning();
+    if(!isPtyRunning) { // start the server if it isn't running.
       M.startServer(undefined, config.minecraft.dir);
-      return resp(true);
-    } else {
-      return resp(false);
     }
+
+    return resp(!isPtyRunning);
   })
 
-  socket.on('status', function(type) {
+  /**
+   * status
+   *
+   * Get the server status.
+   **/
+  socket.on('status', function() {
     if(!socket.isAuthenticated) {
       console.log('[mcfd] not authenticated, drop');
       return false;
     }
 
-    let status;
+    let status = 'down';
     if(M.isPtyRunning()) {
       status = 'up';
-    } else {
-      status = 'down';
     }
 
     return socket.emit('res', {
@@ -98,7 +110,23 @@ io.on('connection', function(socket) {
       data: status
     });
   })
+
+  /**
+   * forceKill
+   *
+   * Essentially killall -9 java
+   **/
+  socket.on('forceKill', function() {
+    if(!socket.isAuthenticated) return false;
+
+    spawnSync('killall', ['-9', 'java']);
+
+    return socket.emit('res', {
+      type: 'forceKill',
+      data: true
+    });
+  })
 });
 
 // listen on 3000
-io.listen(3000);
+io.listen(config.port);
