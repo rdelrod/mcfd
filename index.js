@@ -130,6 +130,3 @@ io.on('connection', function(socket) {
 
 // listen on 3000
 io.listen(config.port);
-
-// start it for now
-M.startServer(undefined, config.minecraft.dir);
